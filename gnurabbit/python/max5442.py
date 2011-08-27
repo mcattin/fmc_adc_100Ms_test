@@ -16,7 +16,10 @@ class CMAX5442:
 
     # offset = value to write to the DAC (2 bytes)
     def set_offset(self, offset):
-        tx = [((offset & 0xFF)<<8), (offset & 0xFF)]
+        tx = [((offset & 0xFF00)>>8), (offset & 0xFF)]
+        print('[max5442] Set offset: %.4X') % offset
+        for i in range(len(tx)):
+            print('[max5442] tx[%d]: %.2X') %(i, tx[i])
         self.spi.transaction(self.slave, tx)
 
     def reset(self):

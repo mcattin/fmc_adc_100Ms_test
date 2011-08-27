@@ -31,44 +31,56 @@ class CDS18B20:
         self.port = port
 
     def read_serial_number(self):
-        print('[DS18B20] Reading serial number')
+        #print('[DS18B20] Reading serial number')
         if(1 != self.onewire.reset(self.port)):
             print('[DS18B20] No presence pulse detected')
             return -1
         else:
-            print('[DS18B20] Write ROM command %.4X') % ROM_READ
-            err = self.onewire.write_byte(self.port, ROM_READ)
+            #print('[DS18B20] Write ROM command %.2X') % self.ROM_READ
+            err = self.onewire.write_byte(self.port, self.ROM_READ)
             family_code = self.onewire.read_byte(self.port)
+            serial_number = 0
             for i in range(6):
                 serial_number |= self.onewire.read_byte(self.port) << (i*8)
             crc = self.onewire.read_byte(self.port)
-            print('[DS18B20] Family code  : %.2X') % family_code
-            print('[DS18B20] Serial number: %.12X') % serial_number
-            print('[DS18B20] CRC          : %.2X') % crc
+            #print('[DS18B20] Family code  : %.2X') % family_code
+            #print('[DS18B20] Serial number: %.12X') % serial_number
+            #print('[DS18B20] CRC          : %.2X') % crc
         return ((crc<<56) | (serial_number<<8) | family_code)
 
     def access(self, serial_number):
-        print('[DS18B20] Accessing device')
+        #print('[DS18B20] Accessing device')
         if(1 != self.onewire.reset(self.port)):
             print('[DS18B20] No presence pulse detected')
             return -1
         else:
-            print('[DS18B20] Write ROM command %.4X') % ROM_MATCH
-            err = self.onewire.write_byte(self.port, ROM_MATCH)
-            self.onewire.write_block(self.port, serial_number)
+            #print('[DS18B20] Write ROM command %.2X') % self.ROM_MATCH
+            err = self.onewire.write_byte(self.port, self.ROM_MATCH)
+            #print serial_number
+            block = []
+            for i in range(8):
+                block.append(serial_number & 0xFF)
+                serial_number >>= 8
+            #print block
+            self.onewire.write_block(self.port, block)
             return 0
 
     def read_temp(self, serial_number):
-        print('[DS18B20] Reading temperature')
+        #print('[DS18B20] Reading temperature')
         err = self.access(serial_number)
-        print('[DS18B20] Write function command %.4X') % CONVERT_TEMP
-        err = self.onewire.write_byte(self.port, CONVERT_TEMP)
+        #print('[DS18B20] Write function command %.2X') % self.CONVERT_TEMP
+        err = self.onewire.write_byte(self.port, self.CONVERT_TEMP)
         time.sleep(1)
         err = self.access(serial_number)
-        print('[DS18B20] Write function command %.4X') % READ_SCRATCHPAD
-        err = self.onewire.write_byte(self.port, READ_SCRATCHPAD)
+        #print('[DS18B20] Write function command %.2X') % self.READ_SCRATCHPAD
+        err = self.onewire.write_byte(self.port, self.READ_SCRATCHPAD)
         data = self.onewire.read_block(self.port, 9)
-        temp = ((data[1] << 12) | ((data[0] & 0xFF00)>>4)) + (((data[0] & 0x00FF)<<4)/256.0)
+        #for i in range(9):
+        #    print('Scratchpad data[%1d]: %.2X') % (i, data[i])
+        temp = (data[1] << 8) | (data[0])
+        if(temp & 0x1000):
+            temp = -0x10000 + temp
+        temp = temp/16.0
         return temp
 
     # Set temperature thresholds

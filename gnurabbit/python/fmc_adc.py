@@ -157,7 +157,7 @@ class CFmcAdc100Ms:
     # print FMC temperature
     def print_temp(self):
         serial_number = self.ds18b20.read_serial_number()
-        print("FMC temperature: %3.3f") % self.read_temp(serial_number)
+        print("FMC temperature: %3.3f°C") % self.ds18b20.read_temp(serial_number)
 
     # scan FMC i2c bus
     def i2c_scan(self):

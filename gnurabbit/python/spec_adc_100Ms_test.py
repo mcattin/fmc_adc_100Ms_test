@@ -119,13 +119,13 @@ if __name__ == '__main__':
     #for i in range(0x200/4):
     #    print("%3d: %.8X") % (i, page3_data[i])
 
-    time.sleep(5)
+    time.sleep(.5)
 
     fmc_adc.i2c_scan()
     fmc_adc.print_unique_id()
-    #fmc_adc.print_temp()
+    fmc_adc.print_temp()
 
-    sys.exit()
+    #sys.exit()
 
     fmc_adc.print_adc_config()
 
@@ -143,8 +143,8 @@ if __name__ == '__main__':
     fmc_adc.set_input_range(3, '10V')
     fmc_adc.set_input_range(4, '10V')
 
-    #print '\nCalibrate DC offset'
-    #fmc_adc.dc_offset_calibr(1, 0x0000)
+    print '\nCalibrate DC offset'
+    #fmc_adc.dc_offset_calibr(1, 0xA000)
     #fmc_adc.dc_offset_calibr(2, 0x8000)
     #fmc_adc.dc_offset_calibr(3, 0xFFFF)
     #fmc_adc.dc_offset_calibr(4)
@@ -153,8 +153,8 @@ if __name__ == '__main__':
     print '\nSet decimation factor'
     fmc_adc.set_decimation(1)
 
-    print '\nEnable ADC test pattern'
-    fmc_adc.testpat_en(0x0001)
+    #print '\nEnable ADC test pattern'
+    #fmc_adc.testpat_en(0x0001)
 
 
     #print '\nEnable test data'
