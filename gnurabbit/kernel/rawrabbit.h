@@ -58,6 +58,8 @@ extern void rr_load_firmware(struct work_struct *work);
 /* By default, the driver registers for this vendor/devid */
 #define RR_DEFAULT_VENDOR	0x1a39
 #define RR_DEFAULT_DEVICE	0x0004
+#define RR_CERN_VENDOR		0x10dc
+#define RR_CERN_DEVICE		0x018d
 
 #define RR_DEFAULT_FWNAME	"rrabbit-%P-%p@%b"
 #define RR_MAX_FWNAME_SIZE	64

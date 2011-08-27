@@ -45,9 +45,7 @@ irqreturn_t rr_interrupt(int irq, void *devid)
 	struct rr_dev *dev = devid;
 	int status;
 
-	printk("cookies\n");
 	status = readl(dev->remap[2] + GPIO_INT_STATUS);
-	printk("status = 0x%08x\n", status);
 	if (status == 0)
 		return IRQ_NONE;
 
@@ -64,7 +62,7 @@ irqreturn_t rr_interrupt(int irq, void *devid)
  * One device id only is supported. 
  */
 
-static struct pci_device_id rr_idtable[2]; /* last must be zero */
+static struct pci_device_id rr_idtable[3]; /* last must be zero */
 
 static void rr_fill_table(struct rr_dev *dev)
 {
@@ -77,6 +75,12 @@ static void rr_fill_table(struct rr_dev *dev)
 	}
 	dev->id_table->vendor = dev->devsel->vendor;
 	dev->id_table->device = dev->devsel->device;
+
+	dev->id_table[1].vendor = RR_CERN_VENDOR;
+	dev->id_table[1].device = RR_CERN_DEVICE;
+	dev->id_table[1].subvendor = PCI_ANY_ID;
+	dev->id_table[1].subdevice = PCI_ANY_ID;
+
 }
 
 static int rr_fill_table_and_probe(struct rr_dev *dev)
@@ -547,7 +551,8 @@ static long rr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			ret = -EAGAIN; /* already happened */
 			break;
 		}
-		wait_event_interruptible(dev->q, count != dev->irqcount);
+		/* IRQ timeout of 1 second */
+		wait_event_interruptible_timeout(dev->q, count != dev->irqcount, HZ);
 		if (signal_pending(current))
 			ret = -ERESTARTSYS;
 		break;
