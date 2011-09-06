@@ -63,11 +63,12 @@ class COpenCoresSPI:
 		txrx = [0x00000000, 0x00000000, 0x00000000, 0x00000000]
 		for i in range(0,len(data)):
 			txrx[i/4] += (data[i]<<((i%4)*8))
-			#print("tx[%d]=%.8X data[%d]=%.2X") %(i,txrx[i/4],i,data[i])
+			#print("tx[%d]=%.8X data[%d]=%.2X") %(i/4,txrx[i/4],i,data[i])
 
 		for i in range(0, len(txrx)):
 			self.wr_reg(self.R_TX[i], txrx[i])
 
+		#print('data length: 0x%X')%len(data)
 		self.wr_reg(self.R_SS, self.SS_SEL[slave])
 		self.wr_reg(self.R_CTRL, (self.LGH_MASK & (len(data)<<3)) | self.CTRL_GO | self.conf)
 		self.wait_busy()

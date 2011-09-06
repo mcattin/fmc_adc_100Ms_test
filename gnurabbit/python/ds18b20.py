@@ -38,6 +38,9 @@ class CDS18B20:
         else:
             #print('[DS18B20] Write ROM command %.2X') % self.ROM_READ
             err = self.onewire.write_byte(self.port, self.ROM_READ)
+            if(err != 0):
+                print('[DS18B20] Write error')
+                return -1
             family_code = self.onewire.read_byte(self.port)
             serial_number = 0
             for i in range(6):

@@ -83,10 +83,11 @@ class COpenCoresOneWire:
 
     def write_byte(self, port, byte):
         data = 0
+        byte_old = byte
         for i in range(8):
             data |= self.write_bit(port, (byte & 0x1)) << i
             byte >>= 1
-        if(byte == data):
+        if(byte_old == data):
             return 0
         else:
             return -1

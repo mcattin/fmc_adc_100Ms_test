@@ -19,6 +19,7 @@ import si57x
 class CFmcAdc100Ms:
 
     FMC_SYS_I2C_ADDR = 0x60000
+    EEPROM_ADDR = 0x50
 
     FMC_SPI_ADDR = 0x70000
     FMC_SPI_DIV = 100
@@ -85,7 +86,9 @@ class CFmcAdc100Ms:
     CTL_OFFSET_DAC_CLR_N = 3
     CTL_BSLIP = 4
     CTL_TEST_DATA_EN = 5
-    CTL_MASK = 0x2C
+    CTL_TRIG_LED = 6
+    CTL_ACQ_LED = 7
+    CTL_MASK = 0xEC
 
     FSM_CMD_MASK = 0x00000003
     FSM_CMD_START = 0x1
@@ -110,7 +113,7 @@ class CFmcAdc100Ms:
 
     IN_TERM = (1<<3)
     IN_TERM_MASK = 0x08
-    IN_RANGES = {'100mV': 0x23, '1V': 0x11, '10V': 0x45, 'CAL': 0x40}
+    IN_RANGES = {'100mV': 0x23, '1V': 0x11, '10V': 0x45, 'CAL': 0x40, 'OPEN': 0x00}
 
 
     def channel_addr(self, channel, reg):
@@ -123,6 +126,7 @@ class CFmcAdc100Ms:
 
     def __init__(self, bus):
         self.bus = bus
+        self.fmc_sys_i2c = i2c.COpenCoresI2C(self.bus, self.FMC_SYS_I2C_ADDR, 249)
         self.fmc_spi = spi.COpenCoresSPI(self.bus, self.FMC_SPI_ADDR, self.FMC_SPI_DIV)
         self.adc_cfg = ltc217x.CLTC217x(self.fmc_spi, self.FMC_SPI_SS['ADC'])
         self.fmc_i2c = i2c.COpenCoresI2C(self.bus, self.FMC_I2C_ADDR, 249)
@@ -142,6 +146,27 @@ class CFmcAdc100Ms:
         # Disable ADC clock and reset offset correction DAC
         #self.fmc_adc_csr.wr_reg(self.R_CTL, 0)
 
+    # Front panel LED manual control
+    def acq_led(self, state):
+        reg = self.fmc_adc_csr.rd_reg(self.R_CTL)
+        #print("R_CTL:%.8X")%reg
+        if(state == 0):
+            reg &= (~(1<<self.CTL_ACQ_LED) & self.CTL_MASK)
+        else:
+            reg |= ((1<<self.CTL_ACQ_LED) & self.CTL_MASK)
+        #print("R_CTL:%.8X")%reg
+        self.fmc_adc_csr.wr_reg(self.R_CTL, reg)
+
+    def trig_led(self, state):
+        reg = self.fmc_adc_csr.rd_reg(self.R_CTL)
+        #print("R_CTL:%.8X")%reg
+        if(state == 0):
+            reg &= (~(1<<self.CTL_TRIG_LED) & self.CTL_MASK)
+        else:
+            reg |= ((1<<self.CTL_TRIG_LED) & self.CTL_MASK)
+        #print("R_CTL:%.8X")%reg
+        self.fmc_adc_csr.wr_reg(self.R_CTL, reg)
+
     # print LTC2174 configuration
     def print_adc_config(self):
         print '\nLTC2174 configuration'
@@ -159,10 +184,27 @@ class CFmcAdc100Ms:
         serial_number = self.ds18b20.read_serial_number()
         print("FMC temperature: %3.3f°C") % self.ds18b20.read_temp(serial_number)
 
+    # Returns FMC unique ID
+    def get_unique_id(self):
+        return self.ds18b20.read_serial_number()
+
+    # Returns FMC temperature
+    def get_temp(self):
+        serial_number = self.ds18b20.read_serial_number()
+        if(serial_number == -1):
+            return -1
+        else:
+            return self.ds18b20.read_temp(serial_number)
+
     # scan FMC i2c bus
     def i2c_scan(self):
         print '\nScan I2C bus'
         self.fmc_i2c.scan()
+
+    # scan FMC system i2c bus
+    def sys_i2c_scan(self):
+        print '\nScan system I2C bus'
+        self.fmc_sys_i2c.scan()
 
     # Set input range
     def set_input_range(self, channel, range):
@@ -177,6 +219,17 @@ class CFmcAdc100Ms:
         self.fmc_adc_csr.wr_reg(addr, reg)
         #print("ssr reg ch%1d: %.8X") %(channel, self.fmc_adc_csr.rd_reg(addr))
 
+    # Set SSR register
+    def set_ssr(self, channel, value):
+        addr = self.channel_addr(channel,self.R_CH1_SSR)
+        self.fmc_adc_csr.wr_reg(addr, value)
+
+    # Get SSR register
+    def get_ssr(self, channel):
+        addr = self.channel_addr(channel,self.R_CH1_SSR)
+        return self.fmc_adc_csr.rd_reg(addr)
+
+
     # DC offset calibration
     def dc_offset_calibr(self, channel, offset):
         if(1 == channel):
@@ -189,6 +242,17 @@ class CFmcAdc100Ms:
             self.dac_ch4.set_offset(offset)
         else:
             raise Exception('Unsupported parameter, channel number from 1 to 4')
+
+    # Reset DC offset DACs
+    def dc_offset_reset(self):
+        reg = self.fmc_adc_csr.rd_reg(self.R_CTL)
+        #print("R_CTL:%.8X")%reg
+        reg &= ~(1<<self.CTL_OFFSET_DAC_CLR_N)
+        #print("R_CTL:%.8X")%reg
+        self.fmc_adc_csr.wr_reg(self.R_CTL, reg)
+        reg |= (1<<self.CTL_OFFSET_DAC_CLR_N)
+        #print("R_CTL:%.8X")%reg
+        self.fmc_adc_csr.wr_reg(self.R_CTL, reg)
 
     # Set 50ohms termination
     def set_input_term(self, channel, state):
@@ -238,6 +302,14 @@ class CFmcAdc100Ms:
             time.sleep(.1)
         self.adc_cfg.dis_testpat()
         print("Serdes synced!")
+
+    # Set test pattern
+    def set_testpat(self, pattern):
+        self.adc_cfg.set_testpat(pattern)
+
+    # Get test pattern
+    def get_testpat(self):
+        return self.adc_cfg.get_testpat()
 
     # Enable test pattern
     def testpat_en(self, pattern):
@@ -306,15 +378,18 @@ class CFmcAdc100Ms:
             print 'Wait for serdes to be synced'
             time.sleep(.1)
         reg = self.fmc_adc_csr.rd_reg(self.R_CTL)
+        reg &= ~self.FSM_CMD_MASK
         reg |= ((self.FSM_CMD_START<<self.CTL_FSM_CMD) & self.FSM_CMD_MASK)
         reg &= (self.CTL_MASK | self.FSM_CMD_MASK)
-        print("R_CTL:%.8X")%reg
+        #print("R_CTL:%.8X")%reg
         self.fmc_adc_csr.wr_reg(self.R_CTL, reg)
 
     # Stop acquisition
     def stop_acq(self):
         reg = self.fmc_adc_csr.rd_reg(self.R_CTL)
+        reg &= ~self.FSM_CMD_MASK
         reg |= ((self.FSM_CMD_STOP<<self.CTL_FSM_CMD) & self.FSM_CMD_MASK)
+        #print("R_CTL:%.8X")%reg
         self.fmc_adc_csr.wr_reg(self.R_CTL, reg)
 
     # Software trigger
@@ -347,7 +422,8 @@ class CFmcAdc100Ms:
         return (self.fmc_adc_csr.rd_bit(self.R_STA, self.STA_SERDES_SYNCED))
 
     # Get ADC core status
-    #def get_status(self): 
+    def get_status(self):
+        return self.fmc_adc_csr.rd_reg(self.R_STA)
 
     # Get Channel current ADC value
     def get_current_adc_value(self, channel):
@@ -367,3 +443,12 @@ class CFmcAdc100Ms:
         print("RFREQ  : %3.28f") % self.si570.get_rfreq()
         print("N1     : %d") % self.si570.get_n1_div()
         print("HS_DIV : %d") % self.si570.get_hs_div()
+
+    # Get Si570 config
+    def get_si570_config(self):
+        config = []
+        config.append(self.si570.get_rfreq())
+        config.append(self.si570.get_n1_div())
+        config.append(self.si570.get_hs_div())
+        return config
+
