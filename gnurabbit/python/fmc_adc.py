@@ -199,12 +199,12 @@ class CFmcAdc100Ms:
     # scan FMC i2c bus
     def i2c_scan(self):
         print '\nScan I2C bus'
-        self.fmc_i2c.scan()
+        return self.fmc_i2c.scan()
 
     # scan FMC system i2c bus
     def sys_i2c_scan(self):
         print '\nScan system I2C bus'
-        self.fmc_sys_i2c.scan()
+        return self.fmc_sys_i2c.scan()
 
     # Set input range
     def set_input_range(self, channel, range):

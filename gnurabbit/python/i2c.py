@@ -91,6 +91,7 @@ class COpenCoresI2C:
         return self.rd_reg(self.R_RXR)
 
     def scan(self):
+        periph_addr = []
         for i in range(0,128):
             addr = i << 1
             addr |= 1
@@ -99,10 +100,13 @@ class COpenCoresI2C:
             self.wait_busy()
 
             if(not(self.rd_reg(self.R_SR) & self.SR_RXACK)):
-                print("Device found at address: %.2X") % i
+                periph_addr.append(i)
+                print("Device found at address: 0x%.2X") % i
                 self.wr_reg(self.R_TXR, 0)
                 self.wr_reg(self.R_CR, self.CR_STO | self.CR_WR)
                 self.wait_busy()
+
+        return periph_addr
 
 
 ##########################################
